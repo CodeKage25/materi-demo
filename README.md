@@ -204,10 +204,10 @@ In **Authentication → Providers → Email**, disable **"Confirm email"** for d
 Update `.env.local`:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-OPENAI_API_KEY=your-openai-key
-OPENAI_ORG_ID=your-org-id
+NEXT_PUBLIC_SUPABASE_URL=https://supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=anon-key
+OPENAI_API_KEY=openai-key
+OPENAI_ORG_ID=org-id
 OPENAI_MODEL_CHAT=gpt-4o
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
