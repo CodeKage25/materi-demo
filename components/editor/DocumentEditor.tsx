@@ -246,9 +246,9 @@ export default function DocumentEditor({
         </button>
       </div>
 
-     
+
       {showAI && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[55vh] md:h-full flex flex-col shadow-xl md:shadow-none border-t md:border-t-0">
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[55vh] md:h-auto md:flex-1 md:min-h-0 flex flex-col shadow-xl md:shadow-none border-t md:border-t-0">
           <AISidebar
             documentId={document.id}
             documentTitle={title}

@@ -37,7 +37,7 @@ export default async function WorkspaceLayout({
         workspace={workspace}
         user={{ email: user.email ?? '', fullName: profile?.full_name ?? '' }}
       />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
     </div>

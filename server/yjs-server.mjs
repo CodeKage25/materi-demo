@@ -1,16 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * Materi — YJS Collaboration Server
- *
- * Standalone WebSocket server that syncs YJS documents between clients.
- * Each document gets its own "room" keyed by document ID.
- *
- * Usage:
- *   node server/yjs-server.mjs            # default port 4444
- *   YJS_PORT=5555 node server/yjs-server.mjs
- */
-
 import { WebSocketServer } from 'ws'
 import * as Y from 'yjs'
 import * as syncProtocol from 'y-protocols/sync'
