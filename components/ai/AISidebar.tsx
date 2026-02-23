@@ -56,8 +56,8 @@ export default function AISidebar({
   userId: string
   userName: string
   collaborators?: string[]
-  onApplyContent: (content: string, title?: string) => void
-  onAppendContent: (content: string) => void
+  onApplyContent: (content: string, title?: string) => void | Promise<void>
+  onAppendContent: (content: string) => void | Promise<void>
 }) {
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map(m => ({ id: m.id, role: m.role, content: normContent(m.content) }))
@@ -221,7 +221,7 @@ export default function AISidebar({
 
             if (event.type === 'tool_call') {
               const toolCall = event as { type: string } & ToolCall
-              handleToolCall(toolCall)
+              await handleToolCall(toolCall)
               const label = TOOL_LABELS[toolCall.name] ?? 'Action applied'
               setMessages(prev => {
                 const updated = [...prev]
@@ -243,18 +243,18 @@ export default function AISidebar({
     broadcastTyping(false)
   }
 
-  function handleToolCall(toolCall: ToolCall) {
+  async function handleToolCall(toolCall: ToolCall) {
     switch (toolCall.name) {
       case 'replace_document':
-        onApplyContent(toolCall.args.content, toolCall.args.title)
+        await onApplyContent(toolCall.args.content, toolCall.args.title)
         toast.success('Document updated by AI')
         break
       case 'append_to_document':
-        onAppendContent(toolCall.args.content)
+        await onAppendContent(toolCall.args.content)
         toast.success('Content added to document')
         break
       case 'suggest_edit':
-        onApplyContent(`__SUGGEST_EDIT__${JSON.stringify({
+        await onApplyContent(`__SUGGEST_EDIT__${JSON.stringify({
           original: toolCall.args.original,
           replacement: toolCall.args.replacement,
         })}`)
@@ -275,7 +275,7 @@ export default function AISidebar({
   }
 
   return (
-    <div className="w-80 flex flex-col border-l bg-background shrink-0">
+    <div className="w-full md:w-80 flex flex-col min-h-0 border-l bg-background shrink-0">
       {/* Header */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center gap-2">

@@ -28,7 +28,7 @@ export default async function WorkspacePage({
     .order('updated_at', { ascending: false })
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-12">
+    <div className="max-w-3xl mx-auto px-4 sm:px-8 pt-16 sm:pt-12 pb-12">
       <h1 className="text-xl font-semibold mb-6">{workspace.name}</h1>
 
       {documents && documents.length > 0 ? (

@@ -11,6 +11,7 @@ import * as Y from 'yjs'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { SupabaseProvider, userColor } from '@/lib/collaboration/supabase-provider'
+import { AIInlineSuggestion } from './extensions/AIInlineSuggestion'
 import EditorToolbar from './EditorToolbar'
 import AISidebar from '@/components/ai/AISidebar'
 import { Bot, X } from 'lucide-react'
@@ -18,19 +19,16 @@ import { Bot, X } from 'lucide-react'
 type AiMessage = { id: string; role: string; content: string; created_at: string }
 type Document = { id: string; title: string; content: unknown; workspace_id: string }
 
-function markdownToHtml(markdown: string) {
-  return markdown
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/^\* (.+)$/gm, '<li>$1</li>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[hl])(.+)$/gm, (match) =>
-      match.trim() && !match.startsWith('<') ? `<p>${match}</p>` : match
-    )
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+function stripMarkdown(md: string): string {
+  return md
+    .replace(/^#{1,6} /gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/^[-*] /gm, '')
+    .trim()
 }
 
 export default function DocumentEditor({
@@ -67,15 +65,12 @@ export default function DocumentEditor({
     const poll = setInterval(() => {
       const provider = providerRef.current
       if (!provider) return
-
       setConnected(provider.connected)
-
-      const states = provider.awareness.getStates()
       const names: string[] = []
-      states.forEach((state: Record<string, unknown>, clientId: number) => {
+      provider.awareness.getStates().forEach((state: Record<string, unknown>, clientId: number) => {
         if (clientId !== provider.awareness.clientID) {
-          const user = state.user as { name?: string } | undefined
-          if (user?.name) names.push(user.name)
+          const u = state.user as { name?: string } | undefined
+          if (u?.name) names.push(u.name)
         }
       })
       setCollaboratorNames(names)
@@ -95,12 +90,10 @@ export default function DocumentEditor({
     const update: { title?: string; content?: object } = {}
     if (newTitle !== undefined) update.title = newTitle
     if (editorJson !== undefined) update.content = editorJson
-
     const { error } = await supabaseRef.current
       .from('documents')
       .update(update)
       .eq('id', document.id)
-
     if (error) toast.error('Failed to save')
     setSaving(false)
   }, [document.id])
@@ -110,6 +103,21 @@ export default function DocumentEditor({
     saveTimer.current = setTimeout(() => saveDocument(undefined, json), 1500)
   }, [saveDocument])
 
+  const fetchSuggestion = useCallback(async (context: string, fullText: string): Promise<string> => {
+    try {
+      const res = await fetch('/api/ai/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context, documentText: fullText }),
+      })
+      if (!res.ok) return ''
+      const { completion } = await res.json()
+      return completion ?? ''
+    } catch {
+      return ''
+    }
+  }, [])
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ history: false }),
@@ -118,11 +126,9 @@ export default function DocumentEditor({
       Collaboration.configure({ document: ydocRef.current }),
       CollaborationCursor.configure({
         provider: providerRef.current,
-        user: {
-          name: userName || 'Anonymous',
-          color: userColor(userId),
-        },
+        user: { name: userName || 'Anonymous', color: userColor(userId) },
       }),
+      AIInlineSuggestion.configure({ fetch: fetchSuggestion }),
     ],
     immediatelyRender: false,
     onUpdate({ editor: ed }) {
@@ -130,7 +136,7 @@ export default function DocumentEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[60vh] px-1',
+        class: 'prose prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[50vh] px-1',
       },
     },
   })
@@ -154,11 +160,22 @@ export default function DocumentEditor({
   }
 
   function getEditorText() {
-    if (!editor) return ''
-    return editor.getText()
+    return editor?.getText() ?? ''
   }
 
-  const handleApplyContent = useCallback((content: string, newTitle?: string) => {
+
+  async function streamWordsAtEnd(text: string, wordDelayMs = 26) {
+    if (!editor) return
+    const words = text.match(/\S+\s*/g) ?? []
+    const { view } = editor
+    for (const word of words) {
+      const endPos = Math.max(0, view.state.doc.content.size - 1)
+      view.dispatch(view.state.tr.insertText(word, endPos))
+      await sleep(wordDelayMs)
+    }
+  }
+
+  const handleApplyContent = useCallback(async (content: string, newTitle?: string) => {
     if (!editor) return
 
     if (content.startsWith('__SUGGEST_EDIT__')) {
@@ -176,29 +193,27 @@ export default function DocumentEditor({
       return
     }
 
-    const html = markdownToHtml(content)
-    editor.commands.setContent(html)
+    editor.commands.clearContent()
 
     if (newTitle) {
       setTitle(newTitle)
       saveDocument(newTitle)
     }
 
+    await streamWordsAtEnd(stripMarkdown(content))
     saveDocument(undefined, editor.getJSON())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, saveDocument])
 
-  const handleAppendContent = useCallback((content: string) => {
+  const handleAppendContent = useCallback(async (content: string) => {
     if (!editor) return
-    const html = markdownToHtml(content)
-    editor.commands.focus('end')
-    editor.commands.insertContent(html)
+    await streamWordsAtEnd(stripMarkdown(content))
     saveDocument(undefined, editor.getJSON())
   }, [editor, saveDocument])
 
   return (
-    <div className="flex h-full">
-      {/* Editor area */}
-      <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex flex-col md:flex-row h-full">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <EditorToolbar
           editor={editor}
           saving={saving}
@@ -207,21 +222,21 @@ export default function DocumentEditor({
         />
 
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-8 py-10">
+          <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
             <input
               type="text"
               value={title}
               onChange={handleTitleChange}
               placeholder="Untitled"
-              className="w-full text-3xl font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground mb-6 resize-none"
+              className="w-full text-2xl sm:text-3xl font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground mb-4 sm:mb-6 resize-none"
             />
             <EditorContent editor={editor} />
           </div>
         </div>
       </div>
 
-      {/* AI toggle */}
-      <div className="border-l flex flex-col">
+      {/* AI toggle button */}
+      <div className="border-t md:border-t-0 md:border-l flex md:flex-col">
         <button
           onClick={() => setShowAI(v => !v)}
           className="p-3 hover:bg-muted transition-colors"
@@ -231,19 +246,21 @@ export default function DocumentEditor({
         </button>
       </div>
 
-      {/* AI Sidebar */}
+     
       {showAI && (
-        <AISidebar
-          documentId={document.id}
-          documentTitle={title}
-          getDocumentText={getEditorText}
-          initialMessages={initialAiMessages}
-          userId={userId}
-          userName={userName}
-          collaborators={collaboratorNames}
-          onApplyContent={handleApplyContent}
-          onAppendContent={handleAppendContent}
-        />
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[55vh] md:h-full flex flex-col shadow-xl md:shadow-none border-t md:border-t-0">
+          <AISidebar
+            documentId={document.id}
+            documentTitle={title}
+            getDocumentText={getEditorText}
+            initialMessages={initialAiMessages}
+            userId={userId}
+            userName={userName}
+            collaborators={collaboratorNames}
+            onApplyContent={handleApplyContent}
+            onAppendContent={handleAppendContent}
+          />
+        </div>
       )}
     </div>
   )

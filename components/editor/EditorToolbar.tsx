@@ -80,7 +80,7 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
   if (!editor) return null
 
   return (
-    <div className="flex items-center gap-0.5 px-4 py-2 border-b bg-background sticky top-0 z-10">
+    <div className="flex items-center gap-0.5 pl-14 pr-2 md:px-4 py-2 border-b bg-background sticky top-0 z-10 overflow-x-auto">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive('bold')}
@@ -164,11 +164,11 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
         <Minus className="h-4 w-4" />
       </ToolbarButton>
 
-      <div className="ml-auto flex items-center gap-3">
-        {/* Online collaborators */}
+      <div className="ml-auto flex items-center gap-2 shrink-0 pl-2">
+        {/* Online collaborators — hidden on small screens */}
         {onlineUsers.length > 0 && (
-          <div className="flex items-center -space-x-1.5">
-            {onlineUsers.slice(0, 5).map((u, i) => (
+          <div className="hidden sm:flex items-center -space-x-1.5">
+            {onlineUsers.slice(0, 4).map((u, i) => (
               <div
                 key={u.userId ?? i}
                 title={u.name}
@@ -178,9 +178,9 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
                 {u.name?.charAt(0)?.toUpperCase() ?? '?'}
               </div>
             ))}
-            {onlineUsers.length > 5 && (
+            {onlineUsers.length > 4 && (
               <div className="h-6 w-6 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
-                +{onlineUsers.length - 5}
+                +{onlineUsers.length - 4}
               </div>
             )}
           </div>
@@ -193,10 +193,10 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted"
         >
           <Share2 className="h-3.5 w-3.5" />
-          Share
+          <span className="hidden sm:inline">Share</span>
         </button>
 
-        {/* Connection status */}
+        {/* Connection + save status */}
         <div
           className="flex items-center gap-1.5"
           title={connected ? 'Live sync active' : 'Connecting…'}
@@ -206,11 +206,10 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
           ) : (
             <WifiOff className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
           )}
+          <span className="hidden sm:inline text-xs text-muted-foreground">
+            {saving ? 'Saving…' : 'Saved'}
+          </span>
         </div>
-
-        <span className="text-xs text-muted-foreground">
-          {saving ? 'Saving…' : 'Saved'}
-        </span>
       </div>
     </div>
   )

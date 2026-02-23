@@ -201,6 +201,14 @@
   pointer-events: none;
 }
 
+.ai-suggestion {
+  color: oklch(0.556 0 0);
+  font-style: italic;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.55;
+}
+
 .collaboration-cursor__label {
   position: absolute;
   top: -1.4em;
