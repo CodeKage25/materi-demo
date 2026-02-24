@@ -14,6 +14,7 @@ export class SupabaseProvider {
   private channel: RealtimeChannel
   private _connected = false
   private _synced = false
+  private _onAiEditingChange?: (active: boolean) => void
 
   constructor(
     doc: Y.Doc,
@@ -34,7 +35,7 @@ export class SupabaseProvider {
       config: { broadcast: { ack: false, self: false } },
     })
 
-    // Incremental updates from peers
+    
     this.channel.on('broadcast', { event: 'yjs-update' }, ({ payload }) => {
       try {
         const update = new Uint8Array(payload.update as number[])
@@ -71,10 +72,15 @@ export class SupabaseProvider {
       }
     })
 
+
+    this.channel.on('broadcast', { event: 'ai-editing' }, ({ payload }) => {
+      const { active } = payload as { active: boolean }
+      this._onAiEditingChange?.(active)
+    })
+
     this.channel.subscribe((status) => {
       this._connected = status === 'SUBSCRIBED'
       if (status === 'SUBSCRIBED') {
-        // Request the full current doc state from any connected peer
         setTimeout(() => {
           this.channel.send({
             type: 'broadcast',
@@ -117,6 +123,18 @@ export class SupabaseProvider {
   }
 
  
+  set onAiEditingChange(cb: (active: boolean) => void) {
+    this._onAiEditingChange = cb
+  }
+
+  broadcastAiEditing(active: boolean) {
+    this.channel.send({
+      type: 'broadcast',
+      event: 'ai-editing',
+      payload: { active },
+    })
+  }
+
   broadcastFullState() {
     const fullState = Y.encodeStateAsUpdate(this.doc)
     this.channel.send({

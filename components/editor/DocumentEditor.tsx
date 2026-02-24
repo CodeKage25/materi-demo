@@ -82,6 +82,9 @@ export default function DocumentEditor({
   }, [])
 
   useEffect(() => {
+    if (providerRef.current) {
+      providerRef.current.onAiEditingChange = (active) => setAiEditing(active)
+    }
     return () => {
       providerRef.current?.destroy()
       ydocRef.current.destroy()
@@ -97,6 +100,11 @@ export default function DocumentEditor({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const setAiEditingBroadcast = useCallback((active: boolean) => {
+    setAiEditing(active)
+    providerRef.current?.broadcastAiEditing(active)
   }, [])
 
   const saveDocument = useCallback(async (newTitle?: string, editorJson?: object) => {
@@ -217,9 +225,9 @@ export default function DocumentEditor({
       saveDocument(newTitle)
     }
 
-    setAiEditing(true)
+    setAiEditingBroadcast(true)
     await streamWordsAtEnd(stripMarkdown(content))
-    setAiEditing(false)
+    setAiEditingBroadcast(false)
     saveDocument(undefined, editor.getJSON())
     providerRef.current?.broadcastFullState()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,12 +235,12 @@ export default function DocumentEditor({
 
   const handleAppendContent = useCallback(async (content: string) => {
     if (!editor) return
-    setAiEditing(true)
+    setAiEditingBroadcast(true)
     await streamWordsAtEnd(stripMarkdown(content))
-    setAiEditing(false)
+    setAiEditingBroadcast(false)
     saveDocument(undefined, editor.getJSON())
     providerRef.current?.broadcastFullState()
-  }, [editor, saveDocument])
+  }, [editor, saveDocument, setAiEditingBroadcast])
 
   const handleTransform = useCallback(async (
     action: string,
@@ -241,7 +249,7 @@ export default function DocumentEditor({
     to: number,
   ) => {
     if (!editor) return
-    setAiEditing(true)
+    setAiEditingBroadcast(true)
 
     editor.view.dispatch(editor.state.tr.delete(from, to))
 
@@ -284,9 +292,9 @@ export default function DocumentEditor({
     } catch {
       toast.error('Transform failed')
     } finally {
-      setAiEditing(false)
+      setAiEditingBroadcast(false)
     }
-  }, [editor, saveDocument])
+  }, [editor, saveDocument, setAiEditingBroadcast])
 
   return (
     <div className="flex flex-col md:flex-row h-full">
