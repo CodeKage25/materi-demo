@@ -160,11 +160,12 @@ export default function DocumentEditor({
   useEffect(() => {
     if (!editor) return
     const timer = setTimeout(() => {
+      if (providerRef.current?.synced) return
       const yXmlFragment = ydocRef.current.getXmlFragment('default')
       if (yXmlFragment.length === 0 && document.content) {
         editor.commands.setContent(document.content as object)
       }
-    }, 500)
+    }, 1500)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])

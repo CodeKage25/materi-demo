@@ -13,6 +13,7 @@ export class SupabaseProvider {
   readonly awareness: awarenessProtocol.Awareness
   private channel: RealtimeChannel
   private _connected = false
+  private _synced = false
 
   constructor(
     doc: Y.Doc,
@@ -33,6 +34,7 @@ export class SupabaseProvider {
       config: { broadcast: { ack: false, self: false } },
     })
 
+    // Incremental updates from peers
     this.channel.on('broadcast', { event: 'yjs-update' }, ({ payload }) => {
       try {
         const update = new Uint8Array(payload.update as number[])
@@ -49,8 +51,38 @@ export class SupabaseProvider {
       }
     })
 
+    
+    this.channel.on('broadcast', { event: 'sync-request' }, () => {
+      const fullState = Y.encodeStateAsUpdate(this.doc)
+      this.channel.send({
+        type: 'broadcast',
+        event: 'sync-response',
+        payload: { update: Array.from(fullState) },
+      })
+    })
+
+    
+    this.channel.on('broadcast', { event: 'sync-response' }, ({ payload }) => {
+      try {
+        const update = new Uint8Array(payload.update as number[])
+        Y.applyUpdate(this.doc, update, 'remote')
+        this._synced = true
+      } catch {
+      }
+    })
+
     this.channel.subscribe((status) => {
       this._connected = status === 'SUBSCRIBED'
+      if (status === 'SUBSCRIBED') {
+        // Request the full current doc state from any connected peer
+        setTimeout(() => {
+          this.channel.send({
+            type: 'broadcast',
+            event: 'sync-request',
+            payload: {},
+          })
+        }, 150)
+      }
     })
 
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
@@ -77,6 +109,11 @@ export class SupabaseProvider {
 
   get connected() {
     return this._connected
+  }
+
+  
+  get synced() {
+    return this._synced
   }
 
   destroy() {
