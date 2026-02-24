@@ -221,6 +221,7 @@ export default function DocumentEditor({
     await streamWordsAtEnd(stripMarkdown(content))
     setAiEditing(false)
     saveDocument(undefined, editor.getJSON())
+    providerRef.current?.broadcastFullState()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, saveDocument])
 
@@ -230,6 +231,7 @@ export default function DocumentEditor({
     await streamWordsAtEnd(stripMarkdown(content))
     setAiEditing(false)
     saveDocument(undefined, editor.getJSON())
+    providerRef.current?.broadcastFullState()
   }, [editor, saveDocument])
 
   const handleTransform = useCallback(async (
@@ -278,6 +280,7 @@ export default function DocumentEditor({
       }
 
       saveDocument(undefined, editor.getJSON())
+      providerRef.current?.broadcastFullState()
     } catch {
       toast.error('Transform failed')
     } finally {

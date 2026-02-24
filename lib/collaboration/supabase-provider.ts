@@ -116,6 +116,16 @@ export class SupabaseProvider {
     return this._synced
   }
 
+ 
+  broadcastFullState() {
+    const fullState = Y.encodeStateAsUpdate(this.doc)
+    this.channel.send({
+      type: 'broadcast',
+      event: 'sync-response',
+      payload: { update: Array.from(fullState) },
+    })
+  }
+
   destroy() {
     awarenessProtocol.removeAwarenessStates(
       this.awareness,
