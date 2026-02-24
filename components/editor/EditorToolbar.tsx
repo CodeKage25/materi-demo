@@ -168,8 +168,8 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
       <div className="ml-auto flex items-center gap-2 shrink-0 pl-2">
         {/* AI editing indicator */}
         {aiEditing && (
-          <span className="hidden sm:flex items-center gap-1 text-xs text-primary animate-pulse">
-            <Wand2 className="h-3 w-3" />
+          <span className="flex items-center gap-1 text-xs text-primary animate-pulse whitespace-nowrap">
+            <Wand2 className="h-3 w-3 shrink-0" />
             AI editing…
           </span>
         )}

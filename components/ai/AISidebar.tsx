@@ -38,6 +38,57 @@ function normContent(content: string): string {
   return TOOL_LABELS[key] ?? content
 }
 
+function inlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)
+  return parts.map((p, i) => {
+    if (/^\*\*.+\*\*$/.test(p)) return <strong key={i}>{p.slice(2, -2)}</strong>
+    if (/^\*.+\*$/.test(p)) return <em key={i}>{p.slice(1, -1)}</em>
+    if (/^`.+`$/.test(p)) return <code key={i} className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">{p.slice(1, -1)}</code>
+    return p
+  })
+}
+
+function renderMarkdown(text: string) {
+  const lines = text.split('\n')
+  const result: React.ReactNode[] = []
+  let listItems: string[] = []
+
+  const flushList = () => {
+    if (listItems.length) {
+      result.push(
+        <ul key={result.length} className="list-disc pl-4 my-1 space-y-0.5">
+          {listItems.map((item, i) => (
+            <li key={i}>{inlineMarkdown(item)}</li>
+          ))}
+        </ul>
+      )
+      listItems = []
+    }
+  }
+
+  lines.forEach((line, idx) => {
+    const listMatch = line.match(/^[-*] (.+)/)
+    if (listMatch) { listItems.push(listMatch[1]); return }
+    flushList()
+    if (line.trim() === '') {
+      if (idx > 0) result.push(<span key={result.length} className="block h-1.5" />)
+      return
+    }
+    const headingMatch = line.match(/^#{1,3} (.+)/)
+    if (headingMatch) {
+      result.push(
+        <span key={result.length} className="block font-semibold mt-1">
+          {inlineMarkdown(headingMatch[1])}
+        </span>
+      )
+      return
+    }
+    result.push(<span key={result.length} className="block">{inlineMarkdown(line)}</span>)
+  })
+  flushList()
+  return result
+}
+
 export default function AISidebar({
   documentId,
   documentTitle,
@@ -315,14 +366,18 @@ export default function AISidebar({
                     {msg.fromName}
                   </p>
                 )}
-                <div className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                <div className={`text-sm leading-relaxed ${
                   Object.values(TOOL_LABELS).includes(msg.content as string)
                     ? 'text-primary font-medium'
                     : ''
                 }`}>
-                  {msg.content || (loading && i === messages.length - 1 ? (
+                  {!msg.content && loading && i === messages.length - 1 ? (
                     <span className="text-muted-foreground animate-pulse">Thinking…</span>
-                  ) : null)}
+                  ) : msg.role === 'assistant' && !Object.values(TOOL_LABELS).includes(msg.content) ? (
+                    renderMarkdown(msg.content)
+                  ) : (
+                    <span className="whitespace-pre-wrap">{msg.content}</span>
+                  )}
                 </div>
               </div>
             </div>

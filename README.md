@@ -11,11 +11,15 @@ Built with Next.js 16, Supabase, TipTap v2, Yjs CRDT, and OpenAI gpt-4o.
 | Feature | Detail |
 |---------|--------|
 | **Real-time collaboration** | Multiple users edit the same document simultaneously via Yjs CRDT over Supabase Realtime |
-| **AI inline suggestions** | Ghost text completions as you type — Tab to accept, Escape to dismiss |
-| **AI word-by-word streaming** | AI edits appear word-by-word in the shared document, visible to all collaborators in real time |
-| **Shared AI chat** | All collaborators see the AI's actions live; chat is persisted per-document, not per-session |
-| **Context-aware agent** | AI knows who is currently editing, who the other collaborators are, and the full document content |
+| **AI inline suggestions** | Ghost text completions as you type — Tab ↵ to accept, Escape to dismiss, 1800ms debounce |
+| **AI word-by-word streaming** | AI edits stream word-by-word into the shared document, visible to all collaborators live |
+| **Floating AI bubble menu** | Select any text → Improve / Shorten / Expand / Fix — AI rewrites the selection in place |
+| **Shared AI chat** | All collaborators see the AI's actions live; chat persisted per-document with markdown rendering |
+| **Context-aware agent** | AI knows who is editing, who the other collaborators are, and the full document content |
 | **AI tools** | Agent can rewrite the document, append content, or apply surgical edits via `suggest_edit` |
+| **AI editing indicator** | Toolbar shows a live "AI editing…" pulse whenever the agent is streaming into the document |
+| **⌘J keyboard shortcut** | Toggle the AI panel from anywhere in the editor |
+| **Live word count** | Word count and estimated reading time update as you type |
 | **Share link auto-join** | Any authenticated user with the link is automatically added to the workspace |
 | **Multi-tenant workspaces** | Full workspace/member model from day one — all data isolated by membership |
 | **Row-Level Security** | Every table has RLS. `auth.uid()` enforced on every policy. No `select=*` anywhere |
@@ -42,6 +46,7 @@ graph TB
         RSC["React Server Components\nData fetching + auth guard"]
         AIChat["/api/ai/chat\nOpenAI agent (tools, streaming)"]
         AIComplete["/api/ai/complete\nInline completion endpoint"]
+        AITransform["/api/ai/transform\nSelection rewrite endpoint"]
         Proxy["proxy.ts\nSession refresh middleware"]
     end
 
@@ -77,6 +82,11 @@ graph TB
 
     AISidebar <-->|"postgres_changes INSERT\nShared AI chat"| Realtime
     AISidebar <-->|"broadcast: ai-typing-{docId}"| Realtime
+
+    Editor -->|"POST selected text + action"| AITransform
+    AITransform -->|"getUser() auth check"| PostgREST
+    AITransform -->|"SSE rewrite stream"| OpenAI
+    AITransform -->|"SSE delta chunks"| Editor
 ```
 
 ### Request lifecycle
@@ -119,6 +129,14 @@ sequenceDiagram
     API->>SB: INSERT document_ai_messages (assistant response)
     B-->>U: Words streamed word-by-word into document via Yjs
     B->>SB: Broadcast Yjs update to all collaborators
+
+    U->>B: Select text → click Improve/Shorten/Expand/Fix
+    B->>API: POST /api/ai/transform {action, text, context}
+    API->>SB: getUser() — verify session
+    API->>OAI: chat.completions (stream, max 1200 tokens)
+    OAI-->>API: SSE delta stream
+    API-->>B: SSE stream
+    B-->>U: Selection replaced word-by-word in editor
 ```
 
 ### Database schema
@@ -209,6 +227,15 @@ User sends AI message
       → User's cursor position is unaffected (inserts happen at document end)
 ```
 
+Bubble menu rewrites run on selections:
+```
+Select text → click action (Improve / Shorten / Expand / Fix)
+  → POST /api/ai/transform {action, text, context}
+  → Selection deleted from editor
+  → AI response streamed back word-by-word at same position via ProseMirror transactions
+  → Goes through Yjs CRDT → visible to all collaborators live
+```
+
 Inline suggestions run independently:
 ```
 User types → 1800ms debounce → POST /api/ai/complete → ghost text rendered
@@ -246,9 +273,10 @@ npm install
 Create a project at [supabase.com](https://supabase.com), then run the migrations in order via the SQL Editor:
 
 ```
-supabase/migrations/001_initial.sql    — schema, RLS policies, indexes, SECURITY DEFINER RPCs
-supabase/migrations/002_realtime.sql   — enable Realtime on document_ai_messages
-supabase/migrations/003_auto_join.sql  — auto_join_workspace RPC for share links
+supabase/migrations/001_initial.sql          — schema, RLS policies, indexes, SECURITY DEFINER RPCs
+supabase/migrations/002_realtime.sql         — enable Realtime on document_ai_messages
+supabase/migrations/003_auto_join.sql        — auto_join_workspace RPC for share links
+supabase/migrations/004_profiles_coworkers.sql — co-member profile visibility for collaborator names
 ```
 
 In **Authentication → Providers → Email**, disable **"Confirm email"** for demo use.
@@ -258,8 +286,8 @@ In **Authentication → Providers → Email**, disable **"Confirm email"** for d
 Create `.env.local`:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_URL=https://project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=anon-key
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL_CHAT=gpt-4o
 NEXT_PUBLIC_APP_URL=http://localhost:3000

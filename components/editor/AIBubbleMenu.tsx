@@ -38,7 +38,7 @@ export default function AIBubbleMenu({
   return (
     <BubbleMenu
       editor={editor}
-      tippyOptions={{ duration: 100, placement: 'top' }}
+      tippyOptions={{ duration: 100, placement: 'top', maxWidth: 'none' }}
       shouldShow={({ state }) => {
         const { from, to } = state.selection
         return from !== to && state.doc.textBetween(from, to).trim().length > 0

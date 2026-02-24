@@ -49,6 +49,7 @@ export default function DocumentEditor({
   const [connected, setConnected] = useState(false)
   const [collaboratorNames, setCollaboratorNames] = useState<string[]>([])
   const [aiEditing, setAiEditing] = useState(false)
+  const [wordCount, setWordCount] = useState(0)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const supabaseRef = useRef(createClient())
@@ -85,6 +86,17 @@ export default function DocumentEditor({
       providerRef.current?.destroy()
       ydocRef.current.destroy()
     }
+  }, [])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault()
+        setShowAI(v => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   const saveDocument = useCallback(async (newTitle?: string, editorJson?: object) => {
@@ -135,6 +147,8 @@ export default function DocumentEditor({
     immediatelyRender: false,
     onUpdate({ editor: ed }) {
       debouncedSave(ed.getJSON())
+      const words = ed.getText().trim().split(/\s+/).filter(Boolean).length
+      setWordCount(words)
     },
     editorProps: {
       attributes: {
@@ -295,6 +309,12 @@ export default function DocumentEditor({
             )}
             <EditorContent editor={editor} />
           </div>
+
+          {wordCount > 0 && (
+            <div className="text-right px-4 sm:px-8 pb-4 text-xs text-muted-foreground/60 select-none">
+              {wordCount} {wordCount === 1 ? 'word' : 'words'} · {Math.max(1, Math.ceil(wordCount / 200))} min read
+            </div>
+          )}
         </div>
       </div>
 
@@ -303,7 +323,7 @@ export default function DocumentEditor({
         <button
           onClick={() => setShowAI(v => !v)}
           className="p-3 hover:bg-muted transition-colors"
-          title="Toggle AI agent"
+          title="Toggle AI agent (⌘J)"
         >
           {showAI ? <X className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
         </button>
