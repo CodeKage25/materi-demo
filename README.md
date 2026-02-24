@@ -6,6 +6,26 @@ Built with Next.js 16, Supabase, TipTap v2, Yjs CRDT, and OpenAI gpt-4o.
 
 ---
 
+## Screenshots
+
+### AI Agent Sidebar
+
+The shared AI chat lets collaborators instruct the agent to write, rewrite, expand, or edit — all visible live.
+
+![AI sidebar with chat history](public/screenshots/screenshot-1.png)
+
+![AI sidebar with tool actions](public/screenshots/screenshot-2.png)
+
+### Real-time Collaborative Editing
+
+Multiple users edit simultaneously with live cursors, name labels, and conflict-free merging via Yjs CRDT.
+
+![Collaborative editing with live cursors](public/screenshots/screenshot-3.png)
+
+![Collaborative editing scrolled view](public/screenshots/screenshot-4.png)
+
+---
+
 ## Features
 
 | Feature | Detail |
