@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { SupabaseProvider, userColor } from '@/lib/collaboration/supabase-provider'
 import { AIInlineSuggestion } from './extensions/AIInlineSuggestion'
+import AIBubbleMenu from './AIBubbleMenu'
 import EditorToolbar from './EditorToolbar'
 import AISidebar from '@/components/ai/AISidebar'
 import { Bot, X } from 'lucide-react'
@@ -47,6 +48,7 @@ export default function DocumentEditor({
   const [saving, setSaving] = useState(false)
   const [connected, setConnected] = useState(false)
   const [collaboratorNames, setCollaboratorNames] = useState<string[]>([])
+  const [aiEditing, setAiEditing] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const supabaseRef = useRef(createClient())
@@ -200,15 +202,72 @@ export default function DocumentEditor({
       saveDocument(newTitle)
     }
 
+    setAiEditing(true)
     await streamWordsAtEnd(stripMarkdown(content))
+    setAiEditing(false)
     saveDocument(undefined, editor.getJSON())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, saveDocument])
 
   const handleAppendContent = useCallback(async (content: string) => {
     if (!editor) return
+    setAiEditing(true)
     await streamWordsAtEnd(stripMarkdown(content))
+    setAiEditing(false)
     saveDocument(undefined, editor.getJSON())
+  }, [editor, saveDocument])
+
+  const handleTransform = useCallback(async (
+    action: string,
+    selectedText: string,
+    from: number,
+    to: number,
+  ) => {
+    if (!editor) return
+    setAiEditing(true)
+
+    editor.view.dispatch(editor.state.tr.delete(from, to))
+
+    try {
+      const res = await fetch('/api/ai/transform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          text: selectedText,
+          context: editor.getText().slice(0, 600),
+        }),
+      })
+
+      if (!res.ok) { toast.error('Transform failed'); return }
+
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const text = decoder.decode(value)
+        for (const line of text.split('\n').filter(l => l.startsWith('data: '))) {
+          const data = line.replace('data: ', '')
+          if (data === '[DONE]') break
+          try {
+            const { delta } = JSON.parse(data)
+            if (delta) {
+              const insertAt = editor.state.selection.from
+              editor.view.dispatch(editor.state.tr.insertText(delta, insertAt))
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
+
+      saveDocument(undefined, editor.getJSON())
+    } catch {
+      toast.error('Transform failed')
+    } finally {
+      setAiEditing(false)
+    }
   }, [editor, saveDocument])
 
   return (
@@ -219,6 +278,7 @@ export default function DocumentEditor({
           saving={saving}
           connected={connected}
           provider={providerRef.current}
+          aiEditing={aiEditing}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -230,6 +290,9 @@ export default function DocumentEditor({
               placeholder="Untitled"
               className="w-full text-2xl sm:text-3xl font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground mb-4 sm:mb-6 resize-none"
             />
+            {editor && (
+              <AIBubbleMenu editor={editor} onTransform={handleTransform} />
+            )}
             <EditorContent editor={editor} />
           </div>
         </div>
@@ -247,21 +310,19 @@ export default function DocumentEditor({
       </div>
 
 
-      {showAI && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[55vh] md:h-full md:min-h-0 flex flex-col shadow-xl md:shadow-none border-t md:border-t-0">
-          <AISidebar
-            documentId={document.id}
-            documentTitle={title}
-            getDocumentText={getEditorText}
-            initialMessages={initialAiMessages}
-            userId={userId}
-            userName={userName}
-            collaborators={collaboratorNames}
-            onApplyContent={handleApplyContent}
-            onAppendContent={handleAppendContent}
-          />
-        </div>
-      )}
+      <div className={`fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[55vh] md:h-full md:overflow-hidden flex flex-col shadow-xl md:shadow-none border-t md:border-t-0 ${showAI ? '' : 'hidden'}`}>
+        <AISidebar
+          documentId={document.id}
+          documentTitle={title}
+          getDocumentText={getEditorText}
+          initialMessages={initialAiMessages}
+          userId={userId}
+          userName={userName}
+          collaborators={collaboratorNames}
+          onApplyContent={handleApplyContent}
+          onAppendContent={handleAppendContent}
+        />
+      </div>
     </div>
   )
 }

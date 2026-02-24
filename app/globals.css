@@ -209,6 +209,15 @@
   opacity: 0.55;
 }
 
+.ai-suggestion::after {
+  content: ' [Tab ↵]';
+  font-size: 0.65em;
+  font-style: normal;
+  opacity: 0.45;
+  vertical-align: super;
+  letter-spacing: 0;
+}
+
 .collaboration-cursor__label {
   position: absolute;
   top: -1.4em;

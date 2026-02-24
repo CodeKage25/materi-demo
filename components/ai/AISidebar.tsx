@@ -155,7 +155,7 @@ export default function AISidebar({
     setLoading(true)
     broadcastTyping(true)
 
-    const { data: inserted } = await supabase
+    const { data: inserted, error: insertError } = await supabase
       .from('document_ai_messages')
       .insert({
         document_id: documentId,
@@ -166,6 +166,7 @@ export default function AISidebar({
       .select('id')
       .single()
 
+    if (insertError) toast.error('Message could not be saved to history')
     if (inserted) seenIds.current.add(inserted.id)
 
     const assistantMessage: Message = { role: 'assistant', content: '' }
@@ -275,7 +276,7 @@ export default function AISidebar({
   }
 
   return (
-    <div className="w-full md:w-80 flex flex-col min-h-0 border-l bg-background shrink-0">
+    <div className="w-full md:w-80 flex flex-col h-full border-l bg-background shrink-0">
       {/* Header */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center gap-2">

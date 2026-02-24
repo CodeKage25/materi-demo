@@ -16,8 +16,36 @@ export type FetchSuggestion = (context: string, fullText: string) => Promise<str
 export const AIInlineSuggestion = Extension.create<{ fetch: FetchSuggestion }>({
   name: 'aiInlineSuggestion',
 
+  priority: 1000,
+
   addOptions() {
     return { fetch: async () => '' }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => {
+        const pluginState = pluginKey.getState(this.editor.state)
+        if (!pluginState?.text) return false
+
+        this.editor.view.dispatch(
+          this.editor.state.tr
+            .insertText(pluginState.text, pluginState.pos)
+            .setMeta(pluginKey, { text: '', pos: 0 })
+        )
+        return true
+      },
+
+      Escape: () => {
+        const pluginState = pluginKey.getState(this.editor.state)
+        if (!pluginState?.text) return false
+
+        this.editor.view.dispatch(
+          this.editor.state.tr.setMeta(pluginKey, { text: '', pos: 0 })
+        )
+        return true
+      },
+    }
   },
 
   addProseMirrorPlugins() {
@@ -84,27 +112,12 @@ export const AIInlineSuggestion = Extension.create<{ fetch: FetchSuggestion }>({
             ])
           },
 
-          handleKeyDown(view, event) {
-            const { text, pos } = this.getState(view.state) ?? { text: '', pos: 0 }
+          handleKeyDown(_view, event) {
+            const { text } = pluginKey.getState(_view.state) ?? { text: '' }
             if (!text) return false
 
-            if (event.key === 'Tab') {
-              event.preventDefault()
-              view.dispatch(
-                view.state.tr
-                  .insertText(text, pos)
-                  .setMeta(pluginKey, { text: '', pos: 0 })
-              )
-              return true
-            }
-
-            if (event.key === 'Escape') {
-              view.dispatch(view.state.tr.setMeta(pluginKey, { text: '', pos: 0 }))
-              return false
-            }
-
             if (event.key.length === 1 || event.key === 'Backspace') {
-              view.dispatch(view.state.tr.setMeta(pluginKey, { text: '', pos: 0 }))
+              _view.dispatch(_view.state.tr.setMeta(pluginKey, { text: '', pos: 0 }))
             }
 
             return false

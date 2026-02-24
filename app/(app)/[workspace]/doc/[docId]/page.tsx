@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import DocumentEditor from '@/components/editor/DocumentEditor'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DocumentPage({
   params,
 }: {

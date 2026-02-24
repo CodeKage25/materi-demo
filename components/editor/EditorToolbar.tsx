@@ -6,7 +6,7 @@ import type { SupabaseProvider } from '@/lib/collaboration/supabase-provider'
 import {
   Bold, Italic, Underline as UnderlineIcon, Code,
   Heading1, Heading2, List, ListOrdered, Quote, Minus,
-  Wifi, WifiOff, Share2,
+  Wifi, WifiOff, Share2, Wand2,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
@@ -19,6 +19,7 @@ type Props = {
   connected: boolean
   provider: SupabaseProvider | null
   shareUrl?: string
+  aiEditing?: boolean
 }
 
 function ToolbarButton({
@@ -48,7 +49,7 @@ function ToolbarButton({
   )
 }
 
-export default function EditorToolbar({ editor, saving, connected, provider, shareUrl }: Props) {
+export default function EditorToolbar({ editor, saving, connected, provider, shareUrl, aiEditing }: Props) {
   const [onlineUsers, setOnlineUsers] = useState<AwarenessUser[]>([])
 
   useEffect(() => {
@@ -165,6 +166,14 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
       </ToolbarButton>
 
       <div className="ml-auto flex items-center gap-2 shrink-0 pl-2">
+        {/* AI editing indicator */}
+        {aiEditing && (
+          <span className="hidden sm:flex items-center gap-1 text-xs text-primary animate-pulse">
+            <Wand2 className="h-3 w-3" />
+            AI editing…
+          </span>
+        )}
+
         {/* Online collaborators — hidden on small screens */}
         {onlineUsers.length > 0 && (
           <div className="hidden sm:flex items-center -space-x-1.5">
