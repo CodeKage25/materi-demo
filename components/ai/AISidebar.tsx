@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Send, Bot, User, Wand2, FileEdit, FilePlus } from 'lucide-react'
+import { Send, Bot, User, Wand2, FileEdit, FilePlus, X } from 'lucide-react'
 
 type Message = {
   id?: string
@@ -99,6 +99,7 @@ export default function AISidebar({
   collaborators = [],
   onApplyContent,
   onAppendContent,
+  onClose,
 }: {
   documentId: string
   documentTitle: string
@@ -109,6 +110,7 @@ export default function AISidebar({
   collaborators?: string[]
   onApplyContent: (content: string, title?: string) => void | Promise<void>
   onAppendContent: (content: string) => void | Promise<void>
+  onClose?: () => void
 }) {
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map(m => ({ id: m.id, role: m.role, content: normContent(m.content) }))
@@ -333,6 +335,15 @@ export default function AISidebar({
         <div className="flex items-center gap-2">
           <Bot className="h-4 w-4" />
           <span className="text-sm font-medium">AI agent</span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="ml-auto p-1 rounded hover:bg-muted transition-colors"
+              aria-label="Close AI chat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           Shared · all collaborators see AI actions live

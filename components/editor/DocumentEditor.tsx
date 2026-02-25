@@ -305,6 +305,8 @@ export default function DocumentEditor({
           connected={connected}
           provider={providerRef.current}
           aiEditing={aiEditing}
+          showAI={showAI}
+          onToggleAI={() => setShowAI(v => !v)}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -330,8 +332,8 @@ export default function DocumentEditor({
         </div>
       </div>
 
-      {/* AI toggle button */}
-      <div className="border-t md:border-t-0 md:border-l flex md:flex-col">
+      {/* AI toggle button — desktop sidebar strip only */}
+      <div className="hidden md:flex md:border-l md:flex-col">
         <button
           onClick={() => setShowAI(v => !v)}
           className="p-3 hover:bg-muted transition-colors"
@@ -341,8 +343,15 @@ export default function DocumentEditor({
         </button>
       </div>
 
+      {/* Mobile backdrop */}
+      {showAI && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/40"
+          onClick={() => setShowAI(false)}
+        />
+      )}
 
-      <div className={`fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[55vh] md:h-full md:overflow-hidden flex flex-col shadow-xl md:shadow-none border-t md:border-t-0 ${showAI ? '' : 'hidden'}`}>
+      <div className={`fixed bottom-0 left-0 right-0 z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto h-[70vh] md:h-full md:overflow-hidden flex flex-col shadow-xl md:shadow-none border-t md:border-t-0 bg-background ${showAI ? '' : 'hidden'}`}>
         <AISidebar
           documentId={document.id}
           documentTitle={title}
@@ -353,6 +362,7 @@ export default function DocumentEditor({
           collaborators={collaboratorNames}
           onApplyContent={handleApplyContent}
           onAppendContent={handleAppendContent}
+          onClose={() => setShowAI(false)}
         />
       </div>
     </div>

@@ -6,7 +6,7 @@ import type { SupabaseProvider } from '@/lib/collaboration/supabase-provider'
 import {
   Bold, Italic, Underline as UnderlineIcon, Code,
   Heading1, Heading2, List, ListOrdered, Quote, Minus,
-  Wifi, WifiOff, Share2, Wand2,
+  Wifi, WifiOff, Share2, Wand2, Bot, X,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
@@ -20,6 +20,8 @@ type Props = {
   provider: SupabaseProvider | null
   shareUrl?: string
   aiEditing?: boolean
+  showAI?: boolean
+  onToggleAI?: () => void
 }
 
 function ToolbarButton({
@@ -49,7 +51,7 @@ function ToolbarButton({
   )
 }
 
-export default function EditorToolbar({ editor, saving, connected, provider, shareUrl, aiEditing }: Props) {
+export default function EditorToolbar({ editor, saving, connected, provider, shareUrl, aiEditing, showAI, onToggleAI }: Props) {
   const [onlineUsers, setOnlineUsers] = useState<AwarenessUser[]>([])
 
   useEffect(() => {
@@ -219,6 +221,22 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
             {saving ? 'Saving…' : 'Saved'}
           </span>
         </div>
+
+        {/* AI toggle — visible on mobile, hidden on md+ (desktop has the sidebar toggle strip) */}
+        {onToggleAI && (
+          <button
+            onClick={onToggleAI}
+            title="Toggle AI agent (⌘J)"
+            className={`md:hidden flex items-center gap-1.5 px-2 py-1 rounded transition-colors text-xs ${
+              showAI
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            {showAI ? <X className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
+            <span>AI</span>
+          </button>
+        )}
       </div>
     </div>
   )
