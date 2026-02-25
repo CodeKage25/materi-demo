@@ -222,7 +222,7 @@ export default function EditorToolbar({ editor, saving, connected, provider, sha
           </span>
         </div>
 
-        {/* AI toggle — visible on mobile, hidden on md+ (desktop has the sidebar toggle strip) */}
+        
         {onToggleAI && (
           <button
             onClick={onToggleAI}
